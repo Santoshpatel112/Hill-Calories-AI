@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Webhook Testing Tool</h1>
+    
+    <div class="test-section">
+        <h2>1. Test Image Upload</h2>
+        <input type="file" id="imageInput" accept="image/*">
+        <button onclick="testWebhook()">Test Webhook</button>
+        <button onclick="testSimpleRequest()">Test Simple Request</button>
+        <div id="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test URLs</h2>
+        <button onclick="testUrls()">Test All URLs</button>
+        <div id="urlResults"></div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = 'https://rajsant123.app.n8n.cloud/webhook-test/meal analysis';
+        const WEBHOOK_URL_ENCODED = 'https://rajsant123.app.n8n.cloud/webhook-test/meal%20analysis';
+        const WEBHOOK_URL_ALT = 'https://rajsant123.app.n8n.cloud/webhook-test/meal-analysis';
+
+        function addResult(containerId, type, message, data = null) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+            if (data) {
+                div.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            container.appendChild(div);
+        }
+
+        async function testWebhook() {
+            const fileInput = document.getElementById('imageInput');
+            const resultsContainer = document.getElementById('results');
+            resultsContainer.innerHTML = '';
+
+            if (!fileInput.files[0]) {
+                addResult('results', 'error', 'Please select an image file first');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            addResult('results', 'info', `Testing with file: ${file.name} (${file.size} bytes, ${file.type})`);
+
+            // Test with FormData
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                addResult('results', 'info', `Sending request to: ${WEBHOOK_URL_ENCODED}`);
+                
+                const response = await fetch(WEBHOOK_URL_ENCODED, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+
+                addResult('results', 'info', `Response status: ${response.status} ${response.statusText}`);
+                
+                const responseText = await response.text();
+                addResult('results', 'info', 'Raw response:', responseText);
+
+                if (response.ok) {
+                    try {
+                        const data = JSON.parse(responseText);
+                        addResult('results', 'success', 'Successfully parsed JSON response:', data);
+                    } catch (e) {
+                        addResult('results', 'error', 'Response is not valid JSON', responseText);
+                    }
+                } else {
+                    addResult('results', 'error', `HTTP Error: ${response.status}`, responseText);
+                }
+
+            } catch (error) {
+                addResult('results', 'error', `Network/Fetch Error: ${error.message}`);
+            }
+        }
+
+        async function testSimpleRequest() {
+            const resultsContainer = document.getElementById('results');
+            
+            try {
+                addResult('results', 'info', 'Testing simple GET request to check if webhook is accessible...');
+                
+                const response = await fetch(WEBHOOK_URL_ENCODED, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+
+                addResult('results', 'info', `GET Response status: ${response.status} ${response.statusText}`);
+                
+                const responseText = await response.text();
+                addResult('results', 'info', 'GET Response:', responseText);
+
+            } catch (error) {
+                addResult('results', 'error', `Simple request failed: ${error.message}`);
+            }
+        }
+
+        async function testUrls() {
+            const urlsToTest = [
+                WEBHOOK_URL,
+                WEBHOOK_URL_ENCODED, 
+                WEBHOOK_URL_ALT
+            ];
+
+            const container = document.getElementById('urlResults');
+            container.innerHTML = '';
+
+            for (const url of urlsToTest) {
+                try {
+                    addResult('urlResults', 'info', `Testing URL: ${url}`);
+                    
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    
+                    addResult('urlResults', response.ok ? 'success' : 'error', 
+                        `${url} → ${response.status} ${response.statusText}`);
+                        
+                } catch (error) {
+                    addResult('urlResults', 'error', `${url} → ${error.message}`);
+                }
+            }
+        }
+
+        // Auto-test URLs on page load
+        window.onload = () => {
+            setTimeout(testUrls, 1000);
+        };
+    </script>
+</body>
+</html>
